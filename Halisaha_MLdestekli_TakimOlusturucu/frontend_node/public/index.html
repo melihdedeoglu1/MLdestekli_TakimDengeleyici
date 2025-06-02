@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Halısaha Takım Dengeleyici (ML Destekli)</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif; background-color: #f9f9f9; text-align: center;
+      padding: 20px; color: #333;
+    }
+    h1, h2 { color: #2c3e50; }
+    button {
+      padding: 10px 15px; margin: 5px; border: none; border-radius: 5px;
+      background-color: #3498db; color: white; cursor: pointer; font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover { background-color: #2980b9; }
+    button:disabled { background-color: #bdc3c7; cursor: not-allowed;}
+    .delete-button { background-color: #e74c3c; }
+    .delete-button:hover { background-color: #c0392b; }
+    .edit-button { background-color: #27ae60; }
+    .edit-button:hover { background-color: #229954; }
+
+    #oyuncuListesi { padding-left: 0; }
+    #oyuncuListesi li {
+      list-style: none; background: white; margin: 10px auto; padding: 15px;
+      width: 90%; max-width: 600px; border-radius: 8px; display: flex;
+      justify-content: space-between; align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: left;
+    }
+    .oyuncu-info { flex-grow: 1; margin-right: 10px; }
+    .oyuncu-info strong { font-size: 1.1em; }
+    .oyuncu-info .mevkiler { font-size: 0.9em; color: #555; margin-top: 4px; }
+    .buton-grup { display: flex; gap: 8px; flex-shrink: 0; }
+
+    #sonuc { display: flex; justify-content: center; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
+    .takim {
+      background: #ffffff; border: 1px solid #ddd; border-radius: 10px; padding: 20px;
+      width: 100%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px;
+    }
+    .takim h3 { margin-top: 0; color: #3498db; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; border: 1px solid #eaeaea; text-align: left; }
+    th { background-color: #f7f7f7; }
+    .fark { margin-top: 20px; font-weight: bold; font-size: 20px; color: #2c3e50; width: 100%; }
+    .error, .info-message {
+      font-weight: bold; padding: 10px; border-radius: 5px; margin: 15px auto; max-width: 500px;
+    }
+    .error { color: #e74c3c; background-color: #fdd; border: 1px solid #e74c3c; }
+    .info-message { color: #3498db; background-color: #e0f7fa; border: 1px solid #3498db; }
+
+    .form-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center;
+      align-items: flex-start; overflow-y: auto; z-index: 1000; padding-top: 5vh;
+    }
+    .form-box {
+      background: white; padding: 25px; border-radius: 10px; width: 90%;
+      max-width: 700px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      margin-bottom: 5vh;
+    }
+    .form-box h2 { margin-top: 0; color: #2c3e50; }
+    .form-box input[type="text"], .form-box input[type="number"], .form-box select {
+        width: calc(100% - 22px); padding: 10px; margin-bottom: 10px;
+        border: 1px solid #ccc; border-radius: 5px; font-size: 16px; box-sizing: border-box;
+    }
+    .field-container-wrapper { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;}
+    .svg-container { flex-shrink: 0; }
+    svg { background: #2ecc71; border: 2px solid #ecf0f1; border-radius: 10px;}
+    .circle { fill: #f39c12; stroke: white; stroke-width: 2px; cursor: pointer; transition: fill 0.2s ease; }
+    .circle.selected-for-attributes { fill: #e74c3c !important; /* Aktif - Kırmızı (öncelikli) */ }
+    .circle.player-can-play { fill: #1abc9c; /* Seçili ama aktif değil - Turkuaz/Yeşil */ }
+
+    #attributeInputsContainer { margin-top: 15px; text-align: left; max-height: 40vh; overflow-y: auto; padding-right:10px;}
+    .attribute-group { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; border-radius: 5px; }
+    .attribute-group h4 { margin-top: 0; color: #3498db; }
+    .attribute-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+    .attribute-group input[type="number"], .attribute-group select { width: calc(100% - 20px); margin-bottom: 8px;}
+    #selectedPositionsDisplay { margin-top: 10px; font-style: italic; color: #555; min-height: 1.2em; /* Boşken kaymayı engelle*/ }
+  </style>
+</head>
+<body>
+  <h1>Halısaha Takım Dengeleyici (ML Destekli)</h1>
+  <button onclick="ekleOyuncuFormunuAc()">Oyuncu Ekle</button>
+  <button onclick="takimOlustur()">Takımları Oluştur</button>
+  
+  <div id="oyuncuListesiContainer">
+    <h2>Eklenen Oyuncular</h2>
+    <ul id="oyuncuListesi"></ul>
+  </div>
+
+  <div id="takimlarSonucContainer">
+      <h2>Takımlar</h2>
+      <div id="sonuc"></div>
+  </div>
+
+  <div id="formModal" class="form-overlay" style="display:none;">
+    <div class="form-box">
+      <h2 id="formBaslik">Oyuncu Ekle</h2>
+      <input id="isimInput" type="text" placeholder="Oyuncu İsmi" /><br>
+      
+      <div class="field-container-wrapper">
+        <div class="svg-container">
+            <p style="font-size:0.9em; margin-bottom:5px;">Pozisyon(lar) seçin ve özelliklerini girin:</p>
+            <svg width="200" height="400" viewBox="0 0 200 400">
+                <rect x="0" y="0" width="200" height="400" fill="#2ecc71"/>
+                <rect x="30" y="30" width="140" height="340" fill="none" stroke="white" stroke-width="2"/>
+                <line x1="30" y1="200" x2="170" y2="200" stroke="white" stroke-width="2" />
+                <circle cx="100" cy="200" r="25" fill="none" stroke="white" stroke-width="2" />
+                <rect x="50" y="30" width="100" height="70" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="70" y="30" width="60" height="30" fill="none" stroke="white" stroke-width="1"/>
+                <rect x="50" y="300" width="100" height="70" fill="none" stroke="white" stroke-width="2"/>
+                <rect x="70" y="340" width="60" height="30" fill="none" stroke="white" stroke-width="1"/>
+
+                <circle id="KaleciDot" cx="100" cy="360" r="10" class="circle" data-ui-position="Kaleci" />
+                <circle id="DefansDot" cx="100" cy="270" r="10" class="circle" data-ui-position="Defans" />
+                <circle id="OrtaSahaDot" cx="100" cy="200" r="10" class="circle" data-ui-position="OrtaSaha" />
+                <circle id="ForvetDot" cx="100" cy="100" r="10" class="circle" data-ui-position="Forvet" />
+            </svg>
+            <div id="selectedPositionsDisplay">Seçilen Pozisyonlar: Yok</div>
+        </div>
+        <div id="attributeInputsContainer">
+            <p class="info-message">Lütfen oyuncunun özelliklerini girmek için sahadan bir pozisyon seçin.</p>
+        </div>
+      </div>
+      <br>
+      <button id="kaydetBtn" onclick="kaydetOyuncu()">Kaydet</button>
+      <button class="delete-button" onclick="kapatForm()">İptal</button>
+    </div>
+  </div>
+
+  <script>
+    // --- Global Değişkenler ---
+    let oyuncular = [];
+    let suankiDuzenlenenOyuncuIndex = null;
+    let currentPlayerAttributeData = {}; 
+    let uiPositionsForCurrentPlayer = []; 
+    let activeUIPositionForAttributeEntry = null; 
+
+    const API_BASE_URL = "http://localhost:8000"; 
+
+    // --- Pozisyon ve Özellik Tanımları ---
+    const pozisyonVeOzellikMap = {
+        "Kaleci": {
+            model_pos_code: "GK",
+            features: [
+                { id: 'goalkeeping_reflexes', label: 'Refleksler', min: 0, max: 100, type: 'number' },
+                { id: 'goalkeeping_handling', label: 'Top Tutma (El)', min: 0, max: 100, type: 'number' },
+                { id: 'goalkeeping_diving', label: 'Uzanma / Dalış', min: 0, max: 100, type: 'number' },
+                { id: 'goalkeeping_kicking', label: 'Ayakla Oyun Kurma / Degaj', min: 0, max: 100, type: 'number' },
+                { id: 'goalkeeping_positioning', label: 'Pozisyon Alma (Kaleci)', min: 0, max: 100, type: 'number' },
+                { id: 'height_cm', label: 'Boy (cm)', type: 'number', min: 150, max: 220 }
+            ]
+        },
+        "Defans": { 
+            model_pos_code: "DEF",
+            features: [
+                { id: 'defending_standing_tackle', label: 'Ayakta Müdahale', min: 0, max: 100, type: 'number' },
+                { id: 'defending_marking_awareness', label: 'Markaj Bilinci', min: 0, max: 100, type: 'number' },
+                { id: 'power_strength', label: 'Fiziksel Güç', min: 0, max: 100, type: 'number' },
+                { id: 'pace', label: 'Hız', min: 0, max: 100, type: 'number' },
+                { id: 'attacking_heading_accuracy', label: 'Kafa Vuruşu İsabeti', min: 0, max: 100, type: 'number' }
+            ]
+        },
+        "OrtaSaha": { 
+            model_pos_code: "MID",
+            features: [
+                { id: 'shooting', label: 'Şut Gücü/Tekniği', min: 0, max: 100, type: 'number' },
+                { id: 'passing', label: 'Pas Yeteneği', min: 0, max: 100, type: 'number' },
+                { id: 'dribbling', label: 'Top Sürme (Dribbling)', min: 0, max: 100, type: 'number' },
+                { id: 'mentality_vision', label: 'Oyun Görüşü', min: 0, max: 100, type: 'number' },
+                { id: 'attack_work_rate', label: 'Hücum Çalışkanlığı', type: 'select', options: {'Düşük': 1, 'Orta': 2, 'Yüksek': 3} },
+                { id: 'defense_work_rate', label: 'Defans Çalışkanlığı', type: 'select', options: {'Düşük': 1, 'Orta': 2, 'Yüksek': 3} }
+            ]
+        },
+        "Forvet": { 
+            model_pos_code: "ST",
+            features: [
+                { id: 'attacking_finishing', label: 'Bitiricilik', min: 0, max: 100, type: 'number' },
+                { id: 'power_strength', label: 'Fiziksel Güç (Forvet)', min: 0, max: 100, type: 'number' },
+                { id: 'mentality_positioning', label: 'Pozisyon Alma (Hücum)', min: 0, max: 100, type: 'number' },
+                { id: 'attacking_heading_accuracy', label: 'Kafa Vuruşu İsabeti (Forvet)', min: 0, max: 100, type: 'number' },
+                { id: 'shooting', label: 'Genel Şut Yeteneği', min: 0, max: 100, type: 'number' }
+            ]
+        }
+    };
+
+    // API'ye gönderilecek özelliklerin DOĞRU SIRASI (main.py'deki model_feature_names ile aynı olmalı)
+    const modelFeatureOrder = {
+        "GK": ['goalkeeping_reflexes', 'goalkeeping_handling', 'goalkeeping_diving', 'goalkeeping_kicking', 'goalkeeping_positioning', 'height_cm'],
+        "DEF": ['defending_standing_tackle', 'defending_marking_awareness', 'power_strength', 'pace', 'attacking_heading_accuracy'],
+        "WB": ['pace', 'power_stamina', 'attacking_crossing', 'defending_standing_tackle', 'work_rate_score'],
+        "MID": ['shooting', 'passing', 'dribbling', 'mentality_vision', 'work_rate_score'],
+        "ST": ['attacking_finishing', 'power_strength', 'mentality_positioning', 'attacking_heading_accuracy', 'shooting']
+    };
+
+    // --- Form ve Liste Fonksiyonları ---
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.circle').forEach(dot => {
+            dot.addEventListener('click', function() {
+                handleUIPositionSelection(this.dataset.uiPosition, this);
+            });
+        });
+        guncelleListeVeMesaj();
+    });
+
+    function resetFormState() {
+        currentPlayerAttributeData = {};
+        uiPositionsForCurrentPlayer = [];
+        activeUIPositionForAttributeEntry = null;
+        document.getElementById("isimInput").value = "";
+        document.querySelectorAll('.circle').forEach(c => c.classList.remove('selected-for-attributes', 'player-can-play'));
+        document.getElementById('attributeInputsContainer').innerHTML = '<p class="info-message">Lütfen oyuncunun özelliklerini girmek için sahadan bir pozisyon seçin.</p>';
+        updateSelectedPositionsDisplay();
+    }
+
+    function ekleOyuncuFormunuAc() {
+      suankiDuzenlenenOyuncuIndex = null;
+      resetFormState();
+      document.getElementById("formBaslik").textContent = "Oyuncu Ekle";
+      document.getElementById("formModal").style.display = "flex";
+    }
+
+    function oyuncuDuzenleFormunuAc(index) {
+        suankiDuzenlenenOyuncuIndex = index;
+        const oyuncu = oyuncular[index];
+        if (!oyuncu) return;
+
+        resetFormState();
+        document.getElementById("formBaslik").textContent = "Oyuncu Düzenle";
+        document.getElementById("isimInput").value = oyuncu.isim;
+        
+        currentPlayerAttributeData = JSON.parse(JSON.stringify(oyuncu.raw_attributes || {}));
+        uiPositionsForCurrentPlayer = [...(oyuncu.mevkiler || [])];
+        activeUIPositionForAttributeEntry = null; 
+        
+        if (uiPositionsForCurrentPlayer.length > 0) {
+            activeUIPositionForAttributeEntry = uiPositionsForCurrentPlayer[0];
+            displayAttributeInputs(activeUIPositionForAttributeEntry);
+        } else {
+            document.getElementById('attributeInputsContainer').innerHTML = '<p class="info-message">Bu oyuncu için kayıtlı pozisyon yok. Eklemek için sahadan seçin.</p>';
+        }
+        
+        updateSVGDotStates();
+        updateSelectedPositionsDisplay();
+        document.getElementById("formModal").style.display = "flex";
+    }
+    
+    function updateSVGDotStates() {
+        document.querySelectorAll('.circle').forEach(dot => {
+            const uiPos = dot.dataset.uiPosition;
+            dot.classList.remove('selected-for-attributes', 'player-can-play'); 
+            if (uiPositionsForCurrentPlayer.includes(uiPos)) {
+                dot.classList.add('player-can-play'); 
+            }
+            if (uiPos === activeUIPositionForAttributeEntry) {
+                dot.classList.remove('player-can-play'); 
+                dot.classList.add('selected-for-attributes'); 
+            }
+        });
+    }
+
+    function handleUIPositionSelection(uiPositionName, dotElement) {
+        const positionIndexInSelection = uiPositionsForCurrentPlayer.indexOf(uiPositionName);
+        const isSelectedForPlayer = positionIndexInSelection !== -1;
+        const isActiveForEntry = activeUIPositionForAttributeEntry === uiPositionName;
+
+        if (isActiveForEntry) {
+            uiPositionsForCurrentPlayer.splice(positionIndexInSelection, 1);
+            delete currentPlayerAttributeData[uiPositionName];
+            activeUIPositionForAttributeEntry = null;
+            document.getElementById('attributeInputsContainer').innerHTML = '<p class="info-message">Lütfen oyuncunun özelliklerini girmek için sahadan bir pozisyon seçin.</p>';
+        } else if (isSelectedForPlayer) {
+            activeUIPositionForAttributeEntry = uiPositionName;
+            displayAttributeInputs(uiPositionName);
+        } else {
+            uiPositionsForCurrentPlayer.push(uiPositionName);
+            if (!currentPlayerAttributeData[uiPositionName]) {
+                currentPlayerAttributeData[uiPositionName] = {};
+            }
+            activeUIPositionForAttributeEntry = uiPositionName;
+            displayAttributeInputs(uiPositionName);
+        }
+        updateSVGDotStates();
+        updateSelectedPositionsDisplay();
+    }
+
+    function displayAttributeInputs(uiPositionName) {
+        const container = document.getElementById('attributeInputsContainer');
+        container.innerHTML = ''; 
+        const positionConfig = pozisyonVeOzellikMap[uiPositionName];
+        if (!positionConfig) {
+            container.innerHTML = `<p class="error">Pozisyon için özellik tanımı bulunamadı: ${uiPositionName}</p>`;
+            return;
+        }
+        const groupDiv = document.createElement('div');
+        groupDiv.classList.add('attribute-group');
+        const title = document.createElement('h4');
+        title.textContent = `${uiPositionName} Özellikleri`;
+        groupDiv.appendChild(title);
+        const savedAttributes = currentPlayerAttributeData[uiPositionName] || {};
+        positionConfig.features.forEach(feature => {
+            const label = document.createElement('label');
+            label.setAttribute('for', `attr_${uiPositionName}_${feature.id}`);
+            label.textContent = feature.label;
+            groupDiv.appendChild(label);
+            if (feature.type === 'select') {
+                const select = document.createElement('select');
+                select.id = `attr_${uiPositionName}_${feature.id}`;
+                select.dataset.featureId = feature.id;
+                select.dataset.uiPosition = uiPositionName;
+                for (const optText in feature.options) {
+                    const option = document.createElement('option');
+                    option.value = feature.options[optText];
+                    option.textContent = optText;
+                    if (savedAttributes[feature.id] !== undefined && Number(savedAttributes[feature.id]) === Number(feature.options[optText])) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                }
+                select.onchange = storeAttributeTemporarily; // onchange daha iyi olabilir
+                groupDiv.appendChild(select);
+            } else { 
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `attr_${uiPositionName}_${feature.id}`;
+                input.dataset.featureId = feature.id;
+                input.dataset.uiPosition = uiPositionName;
+                if (feature.min !== undefined) input.min = feature.min;
+                if (feature.max !== undefined) input.max = feature.max;
+                input.placeholder = `${feature.label} (${feature.min !== undefined ? feature.min + '-' + feature.max : 'değer'})`;
+                input.value = savedAttributes[feature.id] || '';
+                input.oninput = storeAttributeTemporarily;
+                groupDiv.appendChild(input);
+            }
+        });
+        container.appendChild(groupDiv);
+    }
+    
+    function storeAttributeTemporarily(event) {
+        const inputElement = event.target;
+        const uiPos = inputElement.dataset.uiPosition;
+        const featureId = inputElement.dataset.featureId;
+        let value = inputElement.value; 
+
+        if (!currentPlayerAttributeData[uiPos]) {
+            currentPlayerAttributeData[uiPos] = {};
+        }
+        if (inputElement.type === 'number' || inputElement.tagName === 'SELECT') { // Select için de sayıya çevir
+            value = parseFloat(value);
+        }
+        currentPlayerAttributeData[uiPos][featureId] = value;
+    }
+
+    function updateSelectedPositionsDisplay() {
+        const display = document.getElementById('selectedPositionsDisplay');
+        if (uiPositionsForCurrentPlayer.length > 0) {
+            display.textContent = `Seçilen Pozisyonlar: ${uiPositionsForCurrentPlayer.join(', ')}`;
+        } else {
+            display.textContent = "Seçilen Pozisyonlar: Yok";
+        }
+    }
+
+    function kapatForm() {
+      document.getElementById("formModal").style.display = "none";
+      suankiDuzenlenenOyuncuIndex = null; 
+      resetFormState();
+    }
+
+    async function kaydetOyuncu() {
+        const kaydetButonu = document.getElementById("kaydetBtn");
+        kaydetButonu.disabled = true;
+        kaydetButonu.textContent = "Kaydediliyor...";
+
+        const isim = document.getElementById("isimInput").value.trim();
+        if (!isim) {
+            alert("Lütfen oyuncu ismini girin.");
+            kaydetButonu.disabled = false; kaydetButonu.textContent = "Kaydet"; return;
+        }
+        if (suankiDuzenlenenOyuncuIndex === null) {
+            if (oyuncular.some(o => o.isim.toLowerCase() === isim.toLowerCase())) {
+                alert("Bu isimde bir oyuncu zaten listede mevcut.");
+                kaydetButonu.disabled = false; kaydetButonu.textContent = "Kaydet"; return;
+            }
+        } else {
+            if (oyuncular.some((o, i) => i !== suankiDuzenlenenOyuncuIndex && o.isim.toLowerCase() === isim.toLowerCase())) {
+                alert("Bu isim başka bir oyuncu tarafından kullanılıyor.");
+                kaydetButonu.disabled = false; kaydetButonu.textContent = "Kaydet"; return;
+            }
+        }
+        if (uiPositionsForCurrentPlayer.length === 0) {
+            alert("Lütfen oyuncu için en az bir pozisyon seçin ve özelliklerini girin.");
+            kaydetButonu.disabled = false; kaydetButonu.textContent = "Kaydet"; return;
+        }
+
+        const finalOveralls = {};
+        const finalRawAttributes = {};
+        let hasErrorInLoop = false;
+
+        for (const uiPos of uiPositionsForCurrentPlayer) {
+            const positionConfig = pozisyonVeOzellikMap[uiPos];
+            const attributesFromForm = currentPlayerAttributeData[uiPos];
+            if (!positionConfig || !attributesFromForm) {
+                alert(`${uiPos} için özellikler eksik veya pozisyon tanımı bulunamadı.`);
+                hasErrorInLoop = true; break;
+            }
+            const featuresForApi = [];
+            const currentModelFeatureList = modelFeatureOrder[positionConfig.model_pos_code];
+            if (!currentModelFeatureList) {
+                alert(`Model için özellik listesi (${positionConfig.model_pos_code}) bulunamadı.`);
+                hasErrorInLoop = true; break;
+            }
+            let calculatedWorkRateScore;
+            if (attributesFromForm['attack_work_rate'] !== undefined && attributesFromForm['defense_work_rate'] !== undefined) {
+                calculatedWorkRateScore = (parseFloat(attributesFromForm['attack_work_rate']) + parseFloat(attributesFromForm['defense_work_rate'])) / 2;
+            }
+            for (const featureName of currentModelFeatureList) {
+                let valueToPush;
+                if (featureName === 'work_rate_score') {
+                    if (calculatedWorkRateScore === undefined && (positionConfig.model_pos_code === "MID" || positionConfig.model_pos_code === "WB")) {
+                        alert(`${uiPos} için çalışkanlık değerleri (Hücum/Defans) eksik.`); hasErrorInLoop = true; break;
+                    }
+                    valueToPush = calculatedWorkRateScore;
+                } else {
+                    valueToPush = attributesFromForm[featureName];
+                }
+                if (valueToPush === undefined || valueToPush === null || String(valueToPush).trim() === '') {
+                    const featureLabel = positionConfig.features.find(f => f.id === featureName)?.label || featureName;
+                    alert(`${uiPos} - '${featureLabel}' için bir değer girmelisiniz.`);
+                    hasErrorInLoop = true; break;
+                }
+                const numericValue = parseFloat(valueToPush);
+                if (isNaN(numericValue)) {
+                     alert(`${uiPos} - '${positionConfig.features.find(f => f.id === featureName)?.label || featureName}' için geçerli bir sayı girmelisiniz.`);
+                    hasErrorInLoop = true; break;
+                }
+                 const featureDef = positionConfig.features.find(f => f.id === featureName);
+                 if (featureDef && featureDef.type === 'number' && (featureDef.min !== undefined && numericValue < featureDef.min || featureDef.max !== undefined && numericValue > featureDef.max)) {
+                     alert(`${uiPos} - '${featureDef.label}' değeri ${featureDef.min}-${featureDef.max} aralığında olmalıdır.`);
+                     hasErrorInLoop = true; break;
+                 }
+                featuresForApi.push(numericValue);
+            }
+            if (hasErrorInLoop) break;
+            try {
+                const response = await fetch(`${API_BASE_URL}/predict`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ position: positionConfig.model_pos_code, features: featuresForApi })
+                });
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ detail: `API Hatası: ${response.status}` }));
+                    throw new Error(errData.detail || `API Hatası: ${response.status}`);
+                }
+                const prediction = await response.json();
+                const rawOverall = prediction.predicted_overall;
+                const scaledOverall = Math.max(1, Math.min(10, parseFloat(((rawOverall / 100) * 9 + 1).toFixed(1))));
+                finalOveralls[uiPos] = scaledOverall;
+                finalRawAttributes[uiPos] = { ...attributesFromForm };
+            } catch (err) {
+                console.error(`API isteği hatası (${uiPos}):`, err);
+                alert(`'${uiPos}' pozisyonu için overall hesaplanırken bir hata oluştu: ${err.message}`);
+                hasErrorInLoop = true; break;
+            }
+        }
+        kaydetButonu.disabled = false; kaydetButonu.textContent = "Kaydet";
+        if (hasErrorInLoop) return;
+        const oyuncuVerisi = { 
+            isim, mevkiler: [...uiPositionsForCurrentPlayer],
+            overalls: finalOveralls, raw_attributes: finalRawAttributes 
+        };
+        if (suankiDuzenlenenOyuncuIndex !== null) {
+            oyuncular[suankiDuzenlenenOyuncuIndex] = oyuncuVerisi;
+        } else {
+            oyuncular.push(oyuncuVerisi);
+        }
+        suankiDuzenlenenOyuncuIndex = null;
+        resetFormState(); guncelleListeVeMesaj(); kapatForm();
+    }
+    
+    function guncelleListeVeMesaj() { /* ...önceki gibi... */ }
+    function guncelleListe() { /* ...güncellenmiş hali önceki yanıtta... */ }
+    function silOyuncu(index) { /* ...önceki gibi... */ }
+    function takimOlustur() { /* ...önceki gibi... */ }
+
+    // guncelleListe, silOyuncu, takimOlustur, guncelleListeVeMesaj fonksiyonlarını bir önceki yanıttan kopyalayın
+    // (Onlarda değişiklik yoktu, sadece kaydetOyuncu ve etrafındaki mantık değişti)
+    // Önceki yanıttaki tam hallerini buraya ekliyorum:
+     function guncelleListeVeMesaj() {
+        guncelleListe();
+        const oyuncuListesiUL = document.getElementById("oyuncuListesi");
+        // const konteyner = document.getElementById("oyuncuListesiContainer"); // Kullanılmıyorsa silinebilir
+         if (oyuncular.length === 0) {
+            oyuncuListesiUL.innerHTML = "<li style='text-align:center; justify-content: center; color: #777;'>Listede henüz oyuncu yok.</li>";
+        }
+    }
+
+    function guncelleListe() {
+      const ul = document.getElementById("oyuncuListesi");
+      ul.innerHTML = ""; 
+      oyuncular.forEach((oyuncu, index) => {
+        const li = document.createElement("li");
+        const oyuncuInfoDiv = document.createElement("div");
+        oyuncuInfoDiv.classList.add("oyuncu-info");
+        const isimStrong = document.createElement("strong");
+        isimStrong.textContent = oyuncu.isim;
+        oyuncuInfoDiv.appendChild(isimStrong);
+        const mevkilerDiv = document.createElement("div");
+        mevkilerDiv.classList.add("mevkiler");
+        const mevkilerText = oyuncu.mevkiler && oyuncu.mevkiler.length > 0 
+            ? oyuncu.mevkiler.map(m => {
+                const overall = oyuncu.overalls && oyuncu.overalls[m] !== undefined 
+                    ? parseFloat(oyuncu.overalls[m]).toFixed(1) 
+                    : 'N/A';
+                return `${m} (${overall})`;
+              }).join(", ")
+            : "Pozisyon Belirtilmemiş";
+        mevkilerDiv.textContent = mevkilerText;
+        oyuncuInfoDiv.appendChild(mevkilerDiv);
+        li.appendChild(oyuncuInfoDiv);
+        const butonGrupDiv = document.createElement("div");
+        butonGrupDiv.classList.add("buton-grup");
+        const duzenleButon = document.createElement("button");
+        duzenleButon.classList.add("edit-button");
+        duzenleButon.textContent = "Güncelle";
+        duzenleButon.onclick = () => oyuncuDuzenleFormunuAc(index);
+        butonGrupDiv.appendChild(duzenleButon);
+        const silButon = document.createElement("button");
+        silButon.classList.add("delete-button");
+        silButon.textContent = "Sil";
+        silButon.onclick = () => silOyuncu(index);
+        butonGrupDiv.appendChild(silButon);
+        li.appendChild(butonGrupDiv);
+        ul.appendChild(li);
+      });
+    }
+
+    function silOyuncu(index) {
+      oyuncular.splice(index, 1);
+      guncelleListeVeMesaj();
+    }
+
+    function takimOlustur() {
+      const sonucDiv = document.getElementById("sonuc");
+      sonucDiv.innerHTML = "<div class='info-message' style='padding:20px; font-size:1.1em;'>Takımlar oluşturuluyor, lütfen bekleyin...</div>"; 
+      fetch("/takim-olustur", { // Bu hala sizin Node.js backend'inize gidiyor
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oyuncular })
+      })
+      .then(res => {
+        if (!res.ok) {
+            return res.json().then(errorData => Promise.reject(errorData));
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.hata) {
+          sonucDiv.innerHTML = `<div class='error'>Hata: ${data.hata}</div>`;
+          return;
+        }
+        if (!data.team1 || !data.team2) { // Beklenmedik cevap formatı
+             sonucDiv.innerHTML = `<div class='error'>Hata: Sunucudan geçersiz takım verisi alındı.</div>`;
+             return;
+        }
+        const t1HTML = data.team1.map(p => `<tr><td>${p.isim}</td><td>${p.mevki}</td><td>${parseFloat(p.puan).toFixed(1)}</td></tr>`).join("");
+        const t2HTML = data.team2.map(p => `<tr><td>${p.isim}</td><td>${p.mevki}</td><td>${parseFloat(p.puan).toFixed(1)}</td></tr>`).join("");
+        const team1Avg = data.team1.length > 0 ? (parseFloat(data.toplamPuan1) / data.team1.length).toFixed(2) : "0.00";
+        const team2Avg = data.team2.length > 0 ? (parseFloat(data.toplamPuan2) / data.team2.length).toFixed(2) : "0.00";
+        sonucDiv.innerHTML = `
+          <div class='takim'>
+            <h3>Takım 1 (Ort. Puan: ${team1Avg}, Toplam: ${parseFloat(data.toplamPuan1).toFixed(2)})</h3>
+            <table><thead><tr><th>İsim</th><th>Mevki</th><th>Puan</th></tr></thead><tbody>${t1HTML}</tbody></table>
+          </div>
+          <div class='takim'>
+            <h3>Takım 2 (Ort. Puan: ${team2Avg}, Toplam: ${parseFloat(data.toplamPuan2).toFixed(2)})</h3>
+            <table><thead><tr><th>İsim</th><th>Mevki</th><th>Puan</th></tr></thead><tbody>${t2HTML}</tbody></table>
+          </div>
+          <div class='fark'>Puan Farkı: ${parseFloat(data.fark).toFixed(2)}</div>`;
+      })
+      .catch(error => {
+          console.error("Takım oluşturma hatası:", error);
+          let errorMessage = "Takımlar oluşturulurken bir sunucu veya ağ hatası oluştu.";
+          if (error && error.hata) {
+              errorMessage = `Hata: ${error.hata}`;
+          } else if (error && typeof error.detail === 'string') { // FastAPI'den gelen HTTPException
+              errorMessage = `Hata: ${error.detail}`;
+          } else if (error && error.message) {
+              errorMessage = `Hata: ${error.message}`;
+          }
+          sonucDiv.innerHTML = `<div class='error'>${errorMessage}</div>`;
+      });
+    }
+  </script>
+</body>
+</html>
