@@ -100,6 +100,8 @@ Bu proje, halı saha maçları için oyuncu listesi oluşturmanıza, oyuncuları
 ## ⚙️ Nasıl Çalışıyor?
 
 1.  *Oyuncu Ekleme/Düzenleme:*
+    
+    https://i.imgur.com/pR9EnxO.png
     * Kullanıcı, index.html arayüzünden oyuncu adı girer.
     * SVG saha haritasından oyuncunun oynayabileceği pozisyonları (Kaleci, Defans, Orta Saha, Forvet) seçer.
     * Seçilen her pozisyon için, o pozisyona özel alt yeteneklere (örneğin Kaleci için Refleksler, Boy; Defans için Müdahale, Hız vb.) 0-100 (veya tanımlı aralıkta) puanlar girer.
@@ -111,6 +113,7 @@ Bu proje, halı saha maçları için oyuncu listesi oluşturmanıza, oyuncuları
 3.  *Puanların Saklanması:*
     * Frontend JavaScript, API'den gelen her pozisyon için "overall" puanını alır, 1-10 skalasına çevirir ve oyuncunun verileri arasında saklar (hem ham alt yetenekler hem de hesaplanmış overall'lar).
 4.  *Takım Dengeleme:*
+    https://i.imgur.com/rCJDBcv.png
     * Kullanıcı "Takımları Oluştur" butonuna tıkladığında, frontend'de saklanan tüm oyuncuların listesi (isimleri, oynayabildikleri mevkiler ve her mevki için hesaplanmış 1-10 arası "overall" puanları) Node.js Express sunucusundaki /takim-olustur endpoint'ine gönderilir.
     * server.js, bu isteği alır ve teamBalancer.js içindeki balanceTeams fonksiyonuna oyuncu verilerini iletir.
     * balanceTeams algoritması:
